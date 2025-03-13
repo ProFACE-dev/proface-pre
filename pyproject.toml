@@ -1,0 +1,49 @@
+# SPDX-FileCopyrightText: 2025 ProFACE developers
+#
+# SPDX-License-Identifier: MIT
+
+[project]
+name = "proface-pre"
+version = "0.1.0"
+description = "Main ProFACE preprocessor"
+readme = "README.md"
+authors = [
+    { name = "Stefano Miccoli", email = "stefano.miccoli@polimi.it" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "click >= 8.1.8",
+    "h5py >= 3.13.0",
+]
+license = "MIT"
+
+[project.scripts]
+proface-pre = "proface.preprocessor.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/proface"]
+
+#
+# ruff
+#
+[tool.ruff]
+line-length = 79
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["A", "ARG", "B", "BLE", "C4", "C90", "COM818",
+  "E", "W", "EM", "F", "FA", "FBT", "FLY", "G", "I", "ICN",
+  "INP", "INT", "ISC", "N", "NPY", "PERF", "PGH", "PIE",
+  "PLE", "PLR", "PLW", "PT", "PYI", "RET", "RUF", "S",
+  "SIM", "SLF", "SLOT", "T10", "T20", "TCH", "TRY", "TID",
+  "UP", "YTT",
+]
+ignore = ["S101", "PT015", "B011", "TRY400"]
+
+
+[tool.ruff.lint.isort]
+known-first-party = ["proface"]
