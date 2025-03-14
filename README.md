@@ -4,8 +4,7 @@ SPDX-FileCopyrightText: 2025 ProFACE developers
 SPDX-License-Identifier: MIT
 -->
 
-![REUSE Compliance](https://img.shields.io/reuse/compliance/github.com%2FProFACE-dev%2Fproface-pre)
-
+[![REUSE status](https://api.reuse.software/badge/github.com/ProFACE-dev/proface-pre)](https://api.reuse.software/info/github.com/ProFACE-dev/proface-pre)
 
 # ProFACE-Pre
 
