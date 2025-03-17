@@ -37,6 +37,20 @@ LOG_LEVELS = {
     nargs=1,
 )
 def main(toml, log_level):
+    #
+    # setup logging
+    #
+    logging.basicConfig(
+        level=LOG_LEVELS[log_level],
+        format="%(levelname)s: %(message)s"
+        if LOG_LEVELS[log_level] >= logging.INFO
+        else "%(name)s-%(levelname)s: %(message)s",
+        stream=sys.stderr,
+    )
+
+    #
+    # parse TOML job
+    #
     with open(toml, "rb") as fp:
         try:
             job = tomllib.load(fp)
@@ -64,7 +78,7 @@ def main(toml, log_level):
     #
     # search fea plugin
     #
-    eps = entry_points(group=f"proface.{fea.lower()}", name="preprocessor")
+    eps = entry_points(group="proface.preprocessor", name=f"{fea.lower()}")
     if len(eps) > 1:
         _error(f"More than one plugin registered: {eps}.", retcode=2)
     if len(eps) == 0:
@@ -73,29 +87,22 @@ def main(toml, log_level):
             retcode=2,
             color="blue",
         )
+    (plugin,) = eps
 
     #
     # load fea plugin
     #
-    try:
-        preproc = eps["preprocessor"].load()
-    except ImportError as exc:
-        _error(f"Unalble to load plugin '{exc.name}'.")
-
-    #
-    # setup logging
-    #
-    logging.basicConfig(
-        level=LOG_LEVELS[log_level],
-        format="%(levelname)s: %(message)s"
-        if LOG_LEVELS[log_level] >= logging.INFO
-        else "%(name)s-%(levelname)s: %(message)s",
-        stream=sys.stderr,
+    logging.debug(
+        "Loading plugin '%s:%s'",
+        plugin.module,
+        plugin.attr,
     )
+    preproc = plugin.load()
 
     #
     # run preprocessor plugin
     #
+    logging.debug("Opening h5 '%s'", h5pth)
     with h5py.File(h5pth, mode="w") as h5:
         try:
             preproc(job=fea_config, job_dir=toml.parent, h5=h5)
