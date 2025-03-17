@@ -105,7 +105,7 @@ def main(toml, log_level):
     logging.debug("Opening h5 '%s'", h5pth)
     with h5py.File(h5pth, mode="w") as h5:
         try:
-            preproc(job=fea_config, job_dir=toml.parent, h5=h5)
+            preproc(job=fea_config, job_path=toml.with_suffix(""), h5=h5)
         except PreprocessorError as exc:
             _error(f"Conversion failed: {exc}")
 
