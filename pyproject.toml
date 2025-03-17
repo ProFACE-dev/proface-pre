@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: MIT
 
 [project]
+dynamic = ["version"]
 name = "proface-pre"
-version = "0.1.0"
 description = "Main ProFACE preprocessor"
 readme = "README.md"
 authors = [
@@ -21,9 +21,16 @@ license = "MIT"
 proface-pre = "proface.preprocessor.cli:main"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
+#
+# hatch
+#
+[tool.hatch.version]
+source = "vcs"
+[tool.hatch.build.hooks.vcs]
+version-file = "src/proface/preprocessor/_version.py"
 [tool.hatch.build.targets.wheel]
 packages = ["src/proface"]
 
@@ -33,6 +40,8 @@ packages = ["src/proface"]
 [tool.ruff]
 line-length = 79
 target-version = "py312"
+
+extend-exclude = ["_version.py"]
 
 [tool.ruff.lint]
 select = ["A", "ARG", "B", "BLE", "C4", "C90", "COM818",

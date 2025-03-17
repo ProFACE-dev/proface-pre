@@ -12,3 +12,6 @@ wheels/
 
 # Virtual environments
 .venv
+
+# hatch-vcs generated file
+src/proface/preprocessor/_version.py
