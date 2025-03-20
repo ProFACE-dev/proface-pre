@@ -103,11 +103,13 @@ def main(toml, log_level):
     # run preprocessor plugin
     #
     logging.debug("Opening h5 '%s'", h5pth)
-    with h5py.File(h5pth, mode="w") as h5:
-        try:
+    try:
+        with h5py.File(h5pth, mode="w") as h5:
             preproc(job=fea_config, job_path=toml.with_suffix(""), h5=h5)
-        except PreprocessorError as exc:
-            _error(f"Conversion failed: {exc}")
+    except OSError as exc:
+        _error(f"{exc}")
+    except PreprocessorError as exc:
+        _error(f"Conversion failed: {exc}")
 
     # all done, OK
     click.echo(h5pth)
