@@ -11,7 +11,7 @@ from pathlib import Path
 import click
 import h5py
 
-from proface.preprocessor import PreprocessorError
+from proface.preprocessor import PreprocessorError, __version__
 
 # Configure logging
 LOG_LEVELS = {
@@ -25,7 +25,27 @@ LOG_LEVELS = {
 logger = logging.getLogger(__name__)
 
 
-@click.command()
+def _versions(ctx, _param, value) -> None:
+    """print console script version and list available plugins"""
+
+    if not value or ctx.resilient_parsing:
+        return
+    click.echo(f"{ctx.info_name}, version {__version__}")
+    click.echo("\nAvailable plugins:")
+    eps = entry_points(group="proface.preprocessor")
+    for i in eps:
+        click.echo(f"  {i.name:10}: {i.dist.name}, version {i.dist.version}")
+    ctx.exit()
+
+
+@click.command
+@click.option(
+    "--version",
+    is_flag=True,
+    callback=_versions,
+    expose_value=False,
+    is_eager=True,
+)
 @click.option(
     "--log-level",
     type=click.Choice(list(LOG_LEVELS), case_sensitive=False),
