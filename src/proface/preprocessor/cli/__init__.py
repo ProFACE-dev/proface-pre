@@ -22,6 +22,8 @@ LOG_LEVELS = {
     "critical": logging.CRITICAL,
 }
 
+logger = logging.getLogger(__name__)
+
 
 @click.command()
 @click.option(
@@ -92,7 +94,7 @@ def main(toml, log_level):
     #
     # load fea plugin
     #
-    logging.debug(
+    logger.debug(
         "Loading plugin '%s:%s'",
         plugin.module,
         plugin.attr,
@@ -102,7 +104,7 @@ def main(toml, log_level):
     #
     # run preprocessor plugin
     #
-    logging.debug("Opening h5 '%s'", h5pth)
+    logger.debug("Opening h5 '%s'", h5pth)
     try:
         with h5py.File(h5pth, mode="w") as h5:
             preproc(job=fea_config, job_path=toml.with_suffix(""), h5=h5)
