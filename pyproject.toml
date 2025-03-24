@@ -29,6 +29,9 @@ build-backend = "hatchling.build"
 #
 [tool.hatch.version]
 source = "vcs"
+[tool.hatch.version.raw-options]
+version_scheme = "release-branch-semver"
+local_scheme = "node-and-date"
 [tool.hatch.build.hooks.vcs]
 version-file = "src/proface/preprocessor/_version.py"
 [tool.hatch.build.targets.wheel]
@@ -40,8 +43,6 @@ packages = ["src/proface"]
 [tool.ruff]
 line-length = 79
 target-version = "py312"
-
-extend-exclude = ["_version.py"]
 
 [tool.ruff.lint]
 select = ["A", "ARG", "B", "BLE", "C4", "C90", "COM818",
