@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MIT
 
+import json
 import logging
 import sys
 import tomllib
@@ -73,16 +74,16 @@ def main(toml, log_level):
     #
     # parse TOML job
     #
-    with open(toml, "rb") as fp:
-        try:
+    try:
+        with open(toml, "rb") as fp:
             job = tomllib.load(fp)
-        except (tomllib.TOMLDecodeError, UnicodeDecodeError) as exc:
-            _error(f"Error decoding JOB.TOML: {exc}")
+    except (tomllib.TOMLDecodeError, UnicodeDecodeError) as exc:
+        _error(f"Error decoding JOB.TOML: {exc}")
 
     #
     # hdf5 output path
     #
-    h5pth = toml.parent / toml.with_suffix(".h5").name
+    h5pth = (toml.parent / toml.stem).with_suffix(".h5")
 
     #
     # read and check JOB.TOML 'preamble'
@@ -112,6 +113,22 @@ def main(toml, log_level):
     (plugin,) = eps
 
     #
+    # create metadata
+    #
+    meta = {}
+    # FIXME: function name "main" is hardcoded in main."entry point"
+    meta["main"] = {
+        "version": __version__,
+        "entry point": f"{__name__}:main",
+    }
+    meta["plugin"] = {
+        "package": plugin.dist.name,
+        "version": plugin.dist.version,
+        "entry point": plugin.value,
+    }
+    logger.debug("Metadata: %s", meta)
+
+    #
     # load fea plugin
     #
     logger.debug(
@@ -127,6 +144,7 @@ def main(toml, log_level):
     logger.debug("Opening h5 '%s'", h5pth)
     try:
         with h5py.File(h5pth, mode="w") as h5:
+            h5.attrs["__meta__"] = json.dumps(meta)
             preproc(job=fea_config, job_path=toml.with_suffix(""), h5=h5)
     except OSError as exc:
         _error(f"{exc}")
