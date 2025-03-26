@@ -115,16 +115,19 @@ def main(toml, log_level):
     #
     # create metadata
     #
-    meta = {}
-    # FIXME: function name "main" is hardcoded in main."entry point"
-    meta["main"] = {
-        "version": __version__,
-        "entry point": f"{__name__}:main",
-    }
-    meta["plugin"] = {
-        "package": plugin.dist.name,
-        "version": plugin.dist.version,
-        "entry point": plugin.value,
+    meta = {
+        "metadata-version": "0.1",
+        "type": "FEA",
+        "version": "1.0",
+        "generator": {
+            "name": __name__,
+            "version": __version__,
+            "plugin": {
+                "distribution-package": plugin.dist.name,
+                "distribution-version": plugin.dist.version,
+                "distribution-entry point": plugin.value,
+            },
+        },
     }
     logger.debug("Metadata: %s", meta)
 
@@ -144,7 +147,7 @@ def main(toml, log_level):
     logger.debug("Opening h5 '%s'", h5pth)
     try:
         with h5py.File(h5pth, mode="w") as h5:
-            h5.attrs["__meta__"] = json.dumps(meta)
+            h5.attrs["__proface.meta__"] = json.dumps(meta)
             preproc(job=fea_config, job_path=toml.with_suffix(""), h5=h5)
     except OSError as exc:
         _error(f"{exc}")
