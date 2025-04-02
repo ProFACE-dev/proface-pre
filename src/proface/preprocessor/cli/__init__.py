@@ -83,7 +83,7 @@ def main(toml, log_level):
     #
     # hdf5 output path
     #
-    h5pth = (toml.parent / toml.stem).with_suffix(".h5")
+    h5pth = toml.with_suffix(".h5")
 
     #
     # read and check JOB.TOML 'preamble'
