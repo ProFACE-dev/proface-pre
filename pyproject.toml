@@ -10,6 +10,17 @@ readme = "README.md"
 authors = [
     { name = "Stefano Miccoli", email = "stefano.miccoli@polimi.it" }
 ]
+mantainers = [
+    { name = "ProFACE developers", email = "proface@polimi.it" }
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: Implementation :: CPython",
+]
 requires-python = ">=3.12"
 dependencies = [
     "click >= 8.1.8",
@@ -19,6 +30,11 @@ license = "MIT"
 
 [project.scripts]
 proface-pre = "proface.preprocessor.cli:main"
+
+[project.urls]
+documentation = "https://github.com/ProFACE-dev/proface-pre#"
+issues = "https://github.com/ProFACE-dev/proface-pre/issues"
+source = "https://github.com/ProFACE-dev/proface-pre"
 
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
@@ -41,7 +57,7 @@ packages = ["src/proface"]
 # ruff
 #
 [tool.ruff]
-line-length = 79
+line-length = 80
 target-version = "py312"
 
 [tool.ruff.lint]
