@@ -26,7 +26,11 @@ LOG_LEVELS = {
 logger = logging.getLogger(__name__)
 
 
-def _versions(ctx, _param, value) -> None:
+def _versions(
+    ctx: click.Context,
+    _param: click.Parameter,
+    value: bool,  # noqa: FBT001
+) -> None:
     """print console script version and list available plugins"""
 
     if not value or ctx.resilient_parsing:
@@ -60,7 +64,7 @@ def _versions(ctx, _param, value) -> None:
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     nargs=1,
 )
-def main(toml, log_level):
+def main(toml: Path, log_level: str) -> None:
     #
     # setup logging
     #
@@ -116,6 +120,7 @@ def main(toml, log_level):
     #
     # create metadata
     #
+    assert plugin.dist is not None
     meta = {
         "metadata-version": "0.1",
         "type": "FEA",
