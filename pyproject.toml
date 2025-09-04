@@ -28,6 +28,12 @@ dependencies = [
 ]
 license = "MIT"
 
+
+[dependency-groups]
+dev = [
+    "mypy>=1.17.1",
+]
+
 [project.scripts]
 proface-pre = "proface.preprocessor.cli:main"
 

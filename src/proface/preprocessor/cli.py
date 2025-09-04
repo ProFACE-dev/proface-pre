@@ -10,7 +10,7 @@ from importlib.metadata import entry_points
 from pathlib import Path
 
 import click
-import h5py
+import h5py  # type: ignore[import-untyped]
 
 from proface.preprocessor import PreprocessorError, __version__
 
@@ -35,6 +35,7 @@ def _versions(ctx, _param, value) -> None:
     click.echo("\nAvailable plugins:")
     eps = entry_points(group="proface.preprocessor")
     for i in eps:
+        assert i.dist is not None
         click.echo(f"  {i.name:10}: {i.dist.name}, version {i.dist.version}")
     ctx.exit()
 
