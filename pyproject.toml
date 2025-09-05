@@ -28,12 +28,6 @@ dependencies = [
 ]
 license = "MIT"
 
-
-[dependency-groups]
-dev = [
-    "mypy>=1.17.1",
-]
-
 [project.scripts]
 proface-pre = "proface.preprocessor.cli:main"
 
@@ -45,6 +39,11 @@ source = "https://github.com/ProFACE-dev/proface-pre"
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.17.1",
+]
 
 #
 # hatch
@@ -79,3 +78,11 @@ ignore = ["S101", "PT015", "B011", "TRY400"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["proface"]
+
+#
+# mypy
+#
+[tool.mypy]
+explicit_package_bases = true
+namespace_packages = true
+mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
