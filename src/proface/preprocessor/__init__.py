@@ -5,7 +5,10 @@
 __all__ = ["DIM", "VOIGT_NOTATION", "PreprocessorError", "__version__"]
 
 
-from ._version import __version__
+try:
+    from ._version import __version__
+except ImportError:
+    __version__ = "0.0.0"
 
 
 class PreprocessorError(Exception):

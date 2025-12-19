@@ -83,6 +83,11 @@ known-first-party = ["proface"]
 # mypy
 #
 [tool.mypy]
+strict = true
 explicit_package_bases = true
 namespace_packages = true
 mypy_path = "$MYPY_CONFIG_FILE_DIR/src"
+
+[[tool.mypy.overrides]]
+module = ["proface.preprocessor._version"]
+ignore_missing_imports = true
