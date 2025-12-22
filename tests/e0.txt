@@ -1,0 +1,5 @@
+# SPDX-FileCopyrightText: 2025 ProFACE developers
+#
+# SPDX-License-Identifier: CC0-1.0
+
+This is not a TOML file!

@@ -42,7 +42,11 @@ build-backend = "hatchling.build"
 
 [dependency-groups]
 dev = [
+    "coverage>=7.13.0",
     "mypy>=1.17.1",
+]
+plugins = [
+    "proface-abaqus-pre>=0.1.0",
 ]
 
 #

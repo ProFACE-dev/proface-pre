@@ -15,3 +15,6 @@ wheels/
 
 # hatch-vcs generated file
 src/proface/preprocessor/_version.py
+
+# Coverage
+.coverage
