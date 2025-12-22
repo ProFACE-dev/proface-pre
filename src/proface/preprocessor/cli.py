@@ -6,6 +6,7 @@ import json
 import logging
 import sys
 import tomllib
+from collections.abc import Callable
 from importlib.metadata import entry_points
 from pathlib import Path
 
@@ -106,21 +107,16 @@ def main(toml: Path, log_level: str) -> None:
     #
     # search fea plugin
     #
-    eps = entry_points(group="proface.preprocessor", name=f"{fea.lower()}")
-    if len(eps) > 1:
-        _error(f"More than one plugin registered: {eps}.", retcode=2)
-    if len(eps) == 0:
-        _error(
-            f"A preprocessor plugin for {fea} FEA is not installed.",
-            retcode=2,
-            color="blue",
+    try:
+        fea_translator, fea_meta = _load_plugin(
+            group="proface.preprocessor", name=f"{fea.lower()}"
         )
-    (plugin,) = eps
+    except RuntimeError as exc:
+        _error(str(exc), retcode=2)
 
     #
     # create metadata
     #
-    assert plugin.dist is not None
     meta = {
         "metadata-version": "0.1",
         "type": "FEA",
@@ -128,24 +124,10 @@ def main(toml: Path, log_level: str) -> None:
         "generator": {
             "name": __name__,
             "version": __version__,
-            "plugin": {
-                "distribution-package": plugin.dist.name,
-                "distribution-version": plugin.dist.version,
-                "distribution-entry point": plugin.value,
-            },
+            "plugin": fea_meta,
         },
     }
     logger.debug("Metadata: %s", meta)
-
-    #
-    # load fea plugin
-    #
-    logger.debug(
-        "Loading plugin '%s:%s'",
-        plugin.module,
-        plugin.attr,
-    )
-    preproc = plugin.load()
 
     #
     # run preprocessor plugin
@@ -154,7 +136,7 @@ def main(toml: Path, log_level: str) -> None:
     try:
         with h5py.File(h5pth, mode="w") as h5:
             h5.attrs["__proface.meta__"] = json.dumps(meta)
-            preproc(job=fea_config, job_path=toml.with_suffix(""), h5=h5)
+            fea_translator(job=fea_config, job_path=toml.with_suffix(""), h5=h5)
     except OSError as exc:
         _error(f"{exc}")
     except PreprocessorError as exc:
@@ -168,3 +150,41 @@ def main(toml: Path, log_level: str) -> None:
 def _error(msg: str, *, retcode: int = 1, color: str = "red") -> None:
     click.secho(msg, fg=color, file=sys.stderr)
     sys.exit(retcode)
+
+
+def _load_plugin(
+    group: str, name: str
+) -> tuple[Callable[..., None], dict[str, str]]:
+    """load plugin at (group, name)"""
+
+    logger.debug("Searching plugin %s-%s", group, name)
+
+    # search entry points
+    eps = entry_points(group=group, name=name)
+    if len(eps) > 1:
+        msg = f"More than one plugin registered: {eps}."
+        raise RuntimeError(msg)
+    if len(eps) == 0:
+        msg = f"A preprocessor plugin for '{name}' FEA is not installed."
+        raise RuntimeError(msg)
+    (plugin,) = eps
+    logger.debug("Found plugin: %s", plugin)
+
+    # build metadata from distro info
+    assert plugin.dist is not None
+    meta: dict[str, str] = {
+        "distribution-package": plugin.dist.name,
+        "distribution-version": plugin.dist.version,
+        "distribution-entry point": plugin.value,
+    }
+    logger.debug("Plugin metadata: %s", meta)
+
+    # load plugin
+    logger.debug(
+        "Loading plugin '%s:%s'",
+        plugin.module,
+        plugin.attr,
+    )
+    translator = plugin.load()
+
+    return translator, meta
