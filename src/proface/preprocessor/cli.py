@@ -37,8 +37,14 @@ def _versions(
     if not value or ctx.resilient_parsing:
         return
     click.echo(f"{ctx.info_name}, version {__version__}")
-    click.echo("\nAvailable plugins:")
+    click.echo("\nAvailable FEA plugins:")
     eps = entry_points(group="proface.preprocessor")
+    for i in eps:
+        assert i.dist is not None
+        click.echo(f"  {i.name:10}: {i.dist.name}, version {i.dist.version}")
+
+    click.echo("\nAvailable “transforms” plugins:")
+    eps = entry_points(group="proface.preprocessor.tools")
     for i in eps:
         assert i.dist is not None
         click.echo(f"  {i.name:10}: {i.dist.name}, version {i.dist.version}")
@@ -65,7 +71,7 @@ def _versions(
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     nargs=1,
 )
-def main(toml: Path, log_level: str) -> None:
+def main(toml: Path, log_level: str) -> None:  # noqa: C901
     #
     # setup logging
     #
@@ -90,6 +96,9 @@ def main(toml: Path, log_level: str) -> None:
     # hdf5 output path
     #
     h5pth = toml.with_suffix(".h5")
+
+    logger.info("JOB file: %s", toml)
+    logger.info("H5  file: %s", h5pth)
 
     #
     # read and check JOB.TOML 'preamble'
@@ -130,17 +139,39 @@ def main(toml: Path, log_level: str) -> None:
     logger.debug("Metadata: %s", meta)
 
     #
-    # run preprocessor plugin
+    # run FEA plugin
     #
-    logger.debug("Opening h5 '%s'", h5pth)
+    logger.debug("Opening h5 in memory")
+    h5mem = h5py.File.in_memory()
+    try:
+        logger.info("\N{BLACK RIGHT-POINTING TRIANGLE} FEA translation")
+        fea_translator(job=fea_config, job_path=toml.with_suffix(""), h5=h5mem)
+    except PreprocessorError as exc:
+        _error(f"Conversion failed: {exc}")
+
+    #
+    # apply transforms
+    #
+    for step in job.get("transforms") or []:
+        logger.info(
+            "\N{BLACK RIGHT-POINTING TRIANGLE} Transform %s", step["_plugin"]
+        )
+        try:
+            _apply_transform(h5=h5mem, job=step, job_path=toml.with_suffix(""))
+        except PreprocessorError as exc:
+            _error(f"Transformation failed: {exc}")
+
+    #
+    # write h5 on disk
+    #
+    logger.debug("Opening h5 on disk: %s", h5pth)
     try:
         with h5py.File(h5pth, mode="w") as h5:
             h5.attrs["__proface.meta__"] = json.dumps(meta)
-            fea_translator(job=fea_config, job_path=toml.with_suffix(""), h5=h5)
+            for g in h5mem:
+                h5.copy(h5mem[g], g)
     except OSError as exc:
         _error(f"{exc}")
-    except PreprocessorError as exc:
-        _error(f"Conversion failed: {exc}")
 
     # all done, OK
     click.echo(h5pth)
@@ -165,7 +196,7 @@ def _load_plugin(
         msg = f"More than one plugin registered: {eps}."
         raise RuntimeError(msg)
     if len(eps) == 0:
-        msg = f"A preprocessor plugin for '{name}' FEA is not installed."
+        msg = f"A plugin for '{name}' is not installed in '{group}'."
         raise RuntimeError(msg)
     (plugin,) = eps
     logger.debug("Found plugin: %s", plugin)
@@ -188,3 +219,15 @@ def _load_plugin(
     translator = plugin.load()
 
     return translator, meta
+
+
+def _apply_transform(
+    *, h5: h5py.File, job: dict[str, str], job_path: Path
+) -> None:
+    step_meta = {k: v for k, v in job.items() if k.startswith("_")}
+    step_config = {k: v for k, v in job.items() if not k.startswith("_")}
+    plug = step_meta["_plugin"]
+    plug_main, _plug_meta = _load_plugin(
+        group="proface.preprocessor.tools", name=plug
+    )
+    plug_main(job=step_config, job_path=job_path, h5=h5)
