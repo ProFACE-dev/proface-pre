@@ -84,28 +84,20 @@ def main(toml: Path, log_level: str) -> None:
         stream=sys.stderr,
     )
 
+    #
+    # read/decode, parse TOML job
+    #
     logger.info("Reading %s", toml.resolve().as_uri())
-    #
-    # parse TOML job
-    #
     try:
         with open(toml, "rb") as fp:
             job = tomllib.load(fp)
     except (tomllib.TOMLDecodeError, UnicodeDecodeError) as exc:
         _error(f"Error decoding JOB.TOML: {exc}")
 
-    #
-    # read and check JOB.TOML 'preamble'
-    #
-    if "fea_software" not in job:
-        _error("Invalid JOB.TOML: missing 'fea_software' key.")
-    fea = job["fea_software"]
-
-    if fea not in job:
-        _error(f"Invalid JOB.TOML: missing '{fea}' table.")
-    fea_config = job[fea]
-    if not isinstance(fea_config, dict):
-        _error(f"Invalid JOB.TOML: '{fea}' is not a table.")
+    try:
+        fea, fea_config = _parse_job(job)
+    except ValueError as exc:
+        _error(f"Invalid JOB.TOML: {exc}")
 
     #
     # open temporary h5 file in memory, to be modified in place
@@ -116,11 +108,15 @@ def main(toml: Path, log_level: str) -> None:
     #
     # run FEA translator
     #
-    logger.info("\N{BLACK RIGHT-POINTING TRIANGLE} FEA translation")
+    logger.info(
+        "\N{BLACK RIGHT-POINTING TRIANGLE} FEA translation for '%s'", fea
+    )
     try:
         fea_meta = _fea_translator(
             fea=fea, job=fea_config, job_path=toml.with_suffix(""), h5=h5tmp
         )
+    except (RuntimeError, OSError) as exc:
+        _error(f"{exc}")
     except PreprocessorError as exc:
         _error(f"Translation failed: {exc}")
 
@@ -215,26 +211,38 @@ def _load_plugin(
     return translator, meta
 
 
+def _parse_job(job: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    try:
+        fea = job["fea_software"]
+    except KeyError as exc:
+        msg = f"missing {exc} key."
+        raise ValueError(msg) from exc
+
+    try:
+        fea_config = job[fea]
+    except KeyError as exc:
+        msg = f"missing '{fea}' table."
+        raise ValueError(msg) from exc
+    if not isinstance(fea_config, dict):
+        msg = f"'{fea}' is not a table."
+        raise ValueError(msg)  # noqa: TRY004
+
+    return fea, fea_config
+
+
 def _fea_translator(
     *, fea: str, job: dict[str, Any], job_path: Path, h5: h5py.File
 ) -> dict[str, str]:
     #
     # search fea plugin
     #
-    try:
-        fea_translator, fea_meta = _load_plugin(
-            group="proface.preprocessor", name=f"{fea.lower()}"
-        )
-    except RuntimeError as exc:
-        raise ValueError(exc) from exc
-        _error(str(exc), retcode=2)
+    fea_translator, fea_meta = _load_plugin(
+        group="proface.preprocessor", name=f"{fea.lower()}"
+    )
     #
     # run FEA plugin
     #
-    try:
-        fea_translator(job=job, job_path=job_path, h5=h5)
-    except PreprocessorError as exc:
-        _error(f"Conversion failed: {exc}")
+    fea_translator(job=job, job_path=job_path, h5=h5)
 
     return fea_meta
 
