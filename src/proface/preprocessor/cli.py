@@ -7,6 +7,7 @@ import logging
 import sys
 import tomllib
 from collections.abc import Callable
+from dataclasses import dataclass
 from importlib.metadata import entry_points
 from pathlib import Path
 from typing import Any
@@ -26,6 +27,20 @@ LOG_LEVELS = {
 }
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class Transform:
+    meta: dict[str, Any]
+    data: dict[str, Any]
+
+    @classmethod
+    def from_job(cls, config: dict[str, Any]) -> "Transform":
+        meta: dict[str, Any] = {}
+        data: dict[str, Any] = {}
+        for k, v in config.items():
+            (meta if k.startswith("_") else data)[k] = v
+        return cls(meta=meta, data=data)
 
 
 def _versions(
@@ -95,7 +110,7 @@ def main(toml: Path, log_level: str) -> None:
         _error(f"Error decoding JOB.TOML: {exc}")
 
     try:
-        fea, fea_config = _parse_job(job)
+        fea, fea_config, transforms = _parse_job(job)
     except ValueError as exc:
         _error(f"Invalid JOB.TOML: {exc}")
 
@@ -137,15 +152,16 @@ def main(toml: Path, log_level: str) -> None:
     #
     # apply transforms
     #
-    for step in job.get("transforms") or []:
+    for step in transforms:
         logger.info(
-            "\N{BLACK RIGHT-POINTING TRIANGLE} Transform %s", step["_plugin"]
+            "\N{BLACK RIGHT-POINTING TRIANGLE} Transform '%s'",
+            step.meta["_plugin"],
         )
         try:
             transform_meta = _apply_transform(
-                h5=h5tmp, job=step, job_path=toml.with_suffix("")
+                h5=h5tmp, transform=step, job_path=toml.with_suffix("")
             )
-        except PreprocessorError as exc:
+        except (RuntimeError, PreprocessorError) as exc:
             _error(f"Transformation failed: {exc}")
         meta.setdefault("transforms", []).append(transform_meta)
 
@@ -211,7 +227,12 @@ def _load_plugin(
     return translator, meta
 
 
-def _parse_job(job: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+def _parse_job(
+    job: dict[str, Any],
+) -> tuple[str, dict[str, Any], list[Transform]]:
+    #
+    # fea_software spec
+    #
     try:
         fea = job["fea_software"]
     except KeyError as exc:
@@ -227,7 +248,33 @@ def _parse_job(job: dict[str, Any]) -> tuple[str, dict[str, Any]]:
         msg = f"'{fea}' is not a table."
         raise ValueError(msg)  # noqa: TRY004
 
-    return fea, fea_config
+    #
+    # transforms spec
+    #
+    transforms_raw = job.get("transforms")
+    if transforms_raw is None:
+        # missing transforms array is valid and no-op
+        return fea, fea_config, []
+
+    if not isinstance(transforms_raw, list) or any(
+        not isinstance(i, dict) for i in transforms_raw
+    ):
+        msg = "'transforms' is not array of tables (i.e. [[transforms]])"
+        raise ValueError(msg)
+
+    # empty dicts are valid and silently dropped
+    transforms_raw = [i for i in transforms_raw if i]
+
+    # map to Transform class
+    transforms = [Transform.from_job(config) for config in transforms_raw]
+
+    # check if mandatory _plugin meta is defined and string
+    for t in transforms:
+        if "_plugin" not in t.meta or not isinstance(t.meta["_plugin"], str):
+            msg = "'_plugin' must be a valid name in each transform."
+            raise ValueError(msg)
+
+    return fea, fea_config, transforms
 
 
 def _fea_translator(
@@ -248,13 +295,11 @@ def _fea_translator(
 
 
 def _apply_transform(
-    *, h5: h5py.File, job: dict[str, str], job_path: Path
+    *, h5: h5py.File, transform: Transform, job_path: Path
 ) -> dict[str, str]:
-    step_meta = {k: v for k, v in job.items() if k.startswith("_")}
-    step_config = {k: v for k, v in job.items() if not k.startswith("_")}
-    plug = step_meta["_plugin"]
+    plug = transform.meta["_plugin"]
     plug_main, plug_meta = _load_plugin(
         group="proface.preprocessor.tools", name=plug
     )
-    plug_main(job=step_config, job_path=job_path, h5=h5)
+    plug_main(job=transform.data, job_path=job_path, h5=h5)
     return plug_meta
