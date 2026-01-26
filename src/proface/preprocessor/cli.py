@@ -17,6 +17,13 @@ import h5py  # type: ignore[import-untyped]
 
 from proface.preprocessor import PreprocessorError, __version__
 
+
+class SchemaError(PreprocessorError):
+    """
+    Raised when the job configuration doesn't adhere to the expected schema.
+    """
+
+
 # Configure logging
 LOG_LEVELS = {
     "debug": logging.DEBUG,
@@ -117,7 +124,7 @@ def main(toml: Path, log_level: str) -> None:
 
     try:
         fea, transforms = _parse_job(job)
-    except ValueError as exc:
+    except SchemaError as exc:
         _error(f"Invalid JOB.TOML: {exc}")
 
     #
@@ -243,20 +250,20 @@ def _parse_job(
         fea_software = job["fea_software"]
     except KeyError as exc:
         msg = f"missing {exc} key."
-        raise ValueError(msg) from exc
+        raise SchemaError(msg) from exc
 
     if not isinstance(fea_software, str):
         msg = "'fea_software' has not a string value"
-        raise ValueError(msg)  # noqa: TRY004
+        raise SchemaError(msg)
 
     try:
         fea_config = job[fea_software]
     except KeyError as exc:
         msg = f"missing '{fea_software}' table."
-        raise ValueError(msg) from exc
+        raise SchemaError(msg) from exc
     if not isinstance(fea_config, dict):
         msg = f"'{fea_software}' is not a table."
-        raise ValueError(msg)  # noqa: TRY004
+        raise SchemaError(msg)
 
     fea = FEA(software=fea_software, data=fea_config)
 
@@ -272,7 +279,7 @@ def _parse_job(
         not isinstance(i, dict) for i in transforms_raw
     ):
         msg = "'transforms' is not array of tables (i.e. [[transforms]])"
-        raise ValueError(msg)
+        raise SchemaError(msg)
 
     # empty dicts are valid and silently dropped
     transforms_raw = [i for i in transforms_raw if i]
@@ -284,7 +291,7 @@ def _parse_job(
     for t in transforms:
         if "_plugin" not in t.meta or not isinstance(t.meta["_plugin"], str):
             msg = "'_plugin' must be a valid name in each transform."
-            raise ValueError(msg)
+            raise SchemaError(msg)
 
     return fea, transforms
 
