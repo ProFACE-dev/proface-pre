@@ -256,11 +256,7 @@ def _parse_job(
         msg = "'fea_software' has not a string value"
         raise SchemaError(msg)
 
-    try:
-        fea_config = job[fea_software]
-    except KeyError as exc:
-        msg = f"missing '{fea_software}' table."
-        raise SchemaError(msg) from exc
+    fea_config = job.get(fea_software, {})
     if not isinstance(fea_config, dict):
         msg = f"'{fea_software}' is not a table."
         raise SchemaError(msg)
