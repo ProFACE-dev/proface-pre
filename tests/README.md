@@ -14,7 +14,7 @@ Various error conditions can be tested (on posix systems) with
 
 ```bash
 uv run coverage erase
-git ls-files "tests/e?.*" | xargs -n1 uv run coverage run -a -m proface.preprocessor
+git ls-files "tests/e*.*" | xargs -n1 uv run coverage run -a -m proface.preprocessor
 ```
 
 ### Other paths

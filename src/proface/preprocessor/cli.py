@@ -30,6 +30,12 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+class FEA:
+    software: str
+    data: dict[str, Any]
+
+
+@dataclass
 class Transform:
     meta: dict[str, Any]
     data: dict[str, Any]
@@ -110,7 +116,7 @@ def main(toml: Path, log_level: str) -> None:
         _error(f"Error decoding JOB.TOML: {exc}")
 
     try:
-        fea, fea_config, transforms = _parse_job(job)
+        fea, transforms = _parse_job(job)
     except ValueError as exc:
         _error(f"Invalid JOB.TOML: {exc}")
 
@@ -128,7 +134,7 @@ def main(toml: Path, log_level: str) -> None:
     )
     try:
         fea_meta = _fea_translator(
-            fea=fea, job=fea_config, job_path=toml.with_suffix(""), h5=h5tmp
+            fea=fea, job_path=toml.with_suffix(""), h5=h5tmp
         )
     except (RuntimeError, OSError) as exc:
         _error(f"{exc}")
@@ -229,24 +235,30 @@ def _load_plugin(
 
 def _parse_job(
     job: dict[str, Any],
-) -> tuple[str, dict[str, Any], list[Transform]]:
+) -> tuple[FEA, list[Transform]]:
     #
     # fea_software spec
     #
     try:
-        fea = job["fea_software"]
+        fea_software = job["fea_software"]
     except KeyError as exc:
         msg = f"missing {exc} key."
         raise ValueError(msg) from exc
 
+    if not isinstance(fea_software, str):
+        msg = "'fea_software' has not a string value"
+        raise ValueError(msg)  # noqa: TRY004
+
     try:
-        fea_config = job[fea]
+        fea_config = job[fea_software]
     except KeyError as exc:
-        msg = f"missing '{fea}' table."
+        msg = f"missing '{fea_software}' table."
         raise ValueError(msg) from exc
     if not isinstance(fea_config, dict):
-        msg = f"'{fea}' is not a table."
+        msg = f"'{fea_software}' is not a table."
         raise ValueError(msg)  # noqa: TRY004
+
+    fea = FEA(software=fea_software, data=fea_config)
 
     #
     # transforms spec
@@ -254,7 +266,7 @@ def _parse_job(
     transforms_raw = job.get("transforms")
     if transforms_raw is None:
         # missing transforms array is valid and no-op
-        return fea, fea_config, []
+        return fea, []
 
     if not isinstance(transforms_raw, list) or any(
         not isinstance(i, dict) for i in transforms_raw
@@ -274,22 +286,22 @@ def _parse_job(
             msg = "'_plugin' must be a valid name in each transform."
             raise ValueError(msg)
 
-    return fea, fea_config, transforms
+    return fea, transforms
 
 
 def _fea_translator(
-    *, fea: str, job: dict[str, Any], job_path: Path, h5: h5py.File
+    *, fea: FEA, job_path: Path, h5: h5py.File
 ) -> dict[str, str]:
     #
     # search fea plugin
     #
     fea_translator, fea_meta = _load_plugin(
-        group="proface.preprocessor", name=f"{fea.lower()}"
+        group="proface.preprocessor", name=f"{fea.software.lower()}"
     )
     #
     # run FEA plugin
     #
-    fea_translator(job=job, job_path=job_path, h5=h5)
+    fea_translator(job=fea.data, job_path=job_path, h5=h5)
 
     return fea_meta
 
