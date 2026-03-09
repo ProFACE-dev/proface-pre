@@ -18,11 +18,11 @@ repos:
     -   id: check-yaml
     -   id: check-toml
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.14
+    rev: v0.15.5
     hooks:
       - id: ruff-check
       - id: ruff-format
   - repo: https://github.com/fsfe/reuse-tool
     rev: v6.2.0
     hooks:
-      - id: reuse
+      - id: reuse-lint-file
