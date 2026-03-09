@@ -277,9 +277,6 @@ def _parse_job(
         msg = "'transforms' is not array of tables (i.e. [[transforms]])"
         raise SchemaError(msg)
 
-    # empty dicts are valid and silently dropped
-    transforms_raw = [i for i in transforms_raw if i]
-
     # map to Transform class
     transforms = [Transform.from_job(config) for config in transforms_raw]
 
