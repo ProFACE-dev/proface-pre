@@ -10,7 +10,7 @@ readme = "README.md"
 authors = [
     { name = "Stefano Miccoli", email = "stefano.miccoli@polimi.it" }
 ]
-mantainers = [
+maintainers = [
     { name = "ProFACE developers", email = "proface@polimi.it" }
 ]
 classifiers = [
@@ -27,12 +27,13 @@ dependencies = [
     "h5py >= 3.13.0",
 ]
 license = "MIT"
+license-files = ["LICENSES/MIT.txt"]
 
 [project.scripts]
 proface-pre = "proface.preprocessor.cli:main"
 
 [project.urls]
-documentation = "https://github.com/ProFACE-dev/proface-pre#"
+documentation = "https://github.com/ProFACE-dev/proface-pre"
 issues = "https://github.com/ProFACE-dev/proface-pre/issues"
 source = "https://github.com/ProFACE-dev/proface-pre"
 
