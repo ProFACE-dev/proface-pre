@@ -10,6 +10,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from importlib.metadata import entry_points
 from pathlib import Path
+from pprint import pformat
+from textwrap import indent
 from typing import Any
 
 import click
@@ -126,6 +128,20 @@ def main(toml: Path, log_level: str) -> None:
         fea, transforms = _parse_job(job)
     except SchemaError as exc:
         _error(f"Invalid JOB.TOML: {exc}")
+    logger.debug(
+        "parsed translator:\n%s",
+        indent(
+            pformat(fea, sort_dicts=False),
+            prefix=" " * 6 + "\N{BOX DRAWINGS LIGHT VERTICAL} ",
+        ),
+    )
+    logger.debug(
+        "parsed transforms:\n%s",
+        indent(
+            pformat(transforms, sort_dicts=False),
+            prefix=" " * 6 + "\N{BOX DRAWINGS LIGHT VERTICAL} ",
+        ),
+    )
 
     #
     # open temporary h5 file in memory, to be modified in place
@@ -137,7 +153,7 @@ def main(toml: Path, log_level: str) -> None:
     # run FEA translator
     #
     logger.info(
-        "\N{BLACK RIGHT-POINTING TRIANGLE} FEA translation for '%s'", fea
+        "\N{BLACK RIGHT-POINTING TRIANGLE} FEA translation for %s", fea.software
     )
     try:
         fea_meta = _fea_translator(
@@ -197,9 +213,9 @@ def main(toml: Path, log_level: str) -> None:
     sys.exit(0)
 
 
-def _error(msg: str, *, retcode: int = 1, color: str = "red") -> None:
-    click.secho(msg, fg=color, file=sys.stderr)
-    sys.exit(retcode)
+def _error(msg: str, *, retcode: int = 1) -> None:
+    logger.error(msg)
+    raise SystemExit(retcode)
 
 
 def _load_plugin(
