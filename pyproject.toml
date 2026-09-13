@@ -47,7 +47,7 @@ dev = [
     "mypy>=1.17.1",
 ]
 plugins = [
-    "proface-abaqus-pre>=0.1.0",
+    "proface-abaqus-pre>=0.2.0rc1",
     "proface-pre-subset>=0.1.1",
 ]
 
