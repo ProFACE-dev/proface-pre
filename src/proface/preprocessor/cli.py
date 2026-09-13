@@ -38,13 +38,13 @@ LOG_LEVELS = {
 logger = logging.getLogger(__name__)
 
 
-@dataclass
+@dataclass(frozen=True)
 class FEA:
     software: str
     data: dict[str, Any]
 
 
-@dataclass
+@dataclass(frozen=True)
 class Transform:
     meta: dict[str, Any]
     data: dict[str, Any]
@@ -56,6 +56,13 @@ class Transform:
         for k, v in config.items():
             (meta if k.startswith("_") else data)[k] = v
         return cls(meta=meta, data=data)
+
+
+@dataclass(frozen=True)
+class Job:
+    job_path: Path
+    fea: FEA
+    transforms: list[Transform]
 
 
 def _versions(
@@ -117,28 +124,17 @@ def main(toml: Path, log_level: str) -> None:
     #
     # read/decode, parse TOML job
     #
-    logger.info("Reading %s", toml.resolve().as_uri())
+    logger.info("Job %s", toml.resolve().as_uri())
     try:
-        with open(toml, "rb") as fp:
-            job = tomllib.load(fp)
+        job_c = _parse_job(toml)
     except (tomllib.TOMLDecodeError, UnicodeDecodeError) as exc:
         _error(f"Error decoding JOB.TOML: {exc}")
-
-    try:
-        fea, transforms = _parse_job(job)
     except SchemaError as exc:
         _error(f"Invalid JOB.TOML: {exc}")
     logger.debug(
-        "parsed translator:\n%s",
+        "parsed job:\n%s",
         indent(
-            pformat(fea, sort_dicts=False),
-            prefix=" " * 6 + "\N{BOX DRAWINGS LIGHT VERTICAL} ",
-        ),
-    )
-    logger.debug(
-        "parsed transforms:\n%s",
-        indent(
-            pformat(transforms, sort_dicts=False),
+            pformat(job_c, sort_dicts=False),
             prefix=" " * 6 + "\N{BOX DRAWINGS LIGHT VERTICAL} ",
         ),
     )
@@ -153,11 +149,12 @@ def main(toml: Path, log_level: str) -> None:
     # run FEA translator
     #
     logger.info(
-        "\N{BLACK RIGHT-POINTING TRIANGLE} FEA translation for %s", fea.software
+        "\N{BLACK RIGHT-POINTING TRIANGLE} FEA translation for %s",
+        job_c.fea.software,
     )
     try:
         fea_meta = _fea_translator(
-            fea=fea, job_path=toml.with_suffix(""), h5=h5tmp
+            fea=job_c.fea, job_path=job_c.job_path, h5=h5tmp
         )
     except (RuntimeError, OSError) as exc:
         _error(f"{exc}")
@@ -181,14 +178,14 @@ def main(toml: Path, log_level: str) -> None:
     #
     # apply transforms
     #
-    for step in transforms:
+    for step in job_c.transforms:
         logger.info(
             "\N{BLACK RIGHT-POINTING TRIANGLE} Transform '%s'",
             step.meta["_plugin"],
         )
         try:
             transform_meta = _apply_transform(
-                h5=h5tmp, transform=step, job_path=toml.with_suffix("")
+                h5=h5tmp, transform=step, job_path=job_c.job_path
             )
         except (RuntimeError, PreprocessorError) as exc:
             _error(f"Transformation failed: {exc}")
@@ -197,8 +194,8 @@ def main(toml: Path, log_level: str) -> None:
     #
     # write h5 on disk
     #
-    h5pth = toml.with_suffix(".h5")
-    logger.info("Writing %s", h5pth.resolve().as_uri())
+    h5pth = job_c.job_path.with_suffix(".h5")
+    logger.info("Output %s", h5pth.resolve().as_uri())
     logger.debug("Metadata: %s", meta)
     try:
         with h5py.File(h5pth, mode="w") as h5:
@@ -257,11 +254,14 @@ def _load_plugin(
 
 
 def _parse_job(
-    job: dict[str, Any],
-) -> tuple[FEA, list[Transform]]:
+    toml: Path,
+) -> Job:
     #
     # fea_software spec
     #
+    with open(toml, "rb") as fp:
+        job = tomllib.load(fp)
+
     try:
         fea_software = job["fea_software"]
     except KeyError as exc:
@@ -282,10 +282,7 @@ def _parse_job(
     #
     # transforms spec
     #
-    transforms_raw = job.get("transforms")
-    if transforms_raw is None:
-        # missing transforms array is valid and no-op
-        return fea, []
+    transforms_raw = job.get("transforms", [])
 
     if not isinstance(transforms_raw, list) or any(
         not isinstance(i, dict) for i in transforms_raw
@@ -302,7 +299,7 @@ def _parse_job(
             msg = "'_plugin' must be a valid name in each transform."
             raise SchemaError(msg)
 
-    return fea, transforms
+    return Job(job_path=toml, fea=fea, transforms=transforms)
 
 
 def _fea_translator(
